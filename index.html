@@ -514,6 +514,10 @@ h2 { font-size: 14px; }
 .vstat{margin:2px 0 0;display:flex;flex-wrap:wrap;gap:2px 12px;font-size:11.5px;color:var(--ink-2)}
 .vstat[hidden]{display:none}.vstat b{color:var(--ink);font-variant-numeric:tabular-nums}
 .vdot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--go);margin-right:5px;box-shadow:0 0 0 3px color-mix(in srgb,var(--go) 22%,transparent)}
+.hright{flex-direction:column;align-items:flex-end;gap:4px}
+.hrow2{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;justify-content:flex-end}
+.hright .vstat{margin:0;justify-content:flex-end}
+.top{align-items:flex-end}
 </style>
 
 </head>
@@ -523,12 +527,11 @@ h2 { font-size: 14px; }
     <div>
       <p class="eyebrow">Gemba walk board</p>
       <h1>Operation Sharp-Eye Gemba</h1>
-      <p class="vstat" id="vstat" hidden aria-label="สถิติผู้เข้าชม"><span title="กำลังเปิดบอร์ดอยู่ตอนนี้"><i class="vdot"></i><b id="v-on">1</b> ออนไลน์</span><span title="จำนวนครั้งที่เปิดบอร์ดวันนี้ / จำนวนคนไม่ซ้ำ (นับตามเบราว์เซอร์)">วันนี้ <b id="v-today">–</b> ครั้ง · <b id="v-uni">–</b> คน</span><span title="จำนวนครั้งที่เปิดบอร์ดทั้งหมด">รวม <b id="v-total">–</b></span></p>
     </div>
-    <div class="hright"><div class="hbtns"><button class="btn" id="snap-save" type="button" disabled title="บันทึกบอร์ดตอนนี้เก็บไว้ดูย้อนหลัง">💾 บันทึกวันนี้</button><button class="btn" id="snap-hist" type="button" disabled title="ดูวันที่บันทึกไว้">🕘 ประวัติ</button></div><div class="datebox">
+    <div class="hright"><p class="vstat" id="vstat" hidden aria-label="สถิติผู้เข้าชม"><span title="กำลังเปิดบอร์ดอยู่ตอนนี้"><i class="vdot"></i><b id="v-on">1</b> ออนไลน์</span><span title="จำนวนครั้งที่เปิดบอร์ดวันนี้ / จำนวนคนไม่ซ้ำ (นับตามเบราว์เซอร์)">วันนี้ <b id="v-today">–</b> ครั้ง · <b id="v-uni">–</b> คน</span><span title="จำนวนครั้งที่เปิดบอร์ดทั้งหมด">รวม <b id="v-total">–</b></span></p><div class="hrow2"><div class="hbtns"><button class="btn" id="snap-save" type="button" disabled title="บันทึกบอร์ดตอนนี้เก็บไว้ดูย้อนหลัง">💾 บันทึกวันนี้</button><button class="btn" id="snap-hist" type="button" disabled title="ดูวันที่บันทึกไว้">🕘 ประวัติ</button></div><div class="datebox">
       <label for="date">วันที่เดินตรวจ</label>
       <span class="datefield"><input id="date" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="DD/MM/YYYY" aria-label="วันที่เดินตรวจ รูปแบบ DD/MM/YYYY"><button type="button" class="calbtn" id="date-pick" aria-label="เลือกวันที่จากปฏิทิน"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button><input id="date-native" type="date" tabindex="-1" aria-hidden="true"></span>
-    </div></div>
+    </div></div></div>
   </header>
 
   <div class="strip">
