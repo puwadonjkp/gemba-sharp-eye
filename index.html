@@ -1007,14 +1007,15 @@ h2 { font-size: 14px; }
     });
   }
   async function makePhoto(file) {
-    var side = 1100, q = .62, d = '';
-    for (var i = 0; i < 5; i++) {
+    // keep storage small: ~1000px longest side, JPEG, target <= ~75KB (base64 text), 120px thumbnail
+    var side = 1000, q = .6, d = '';
+    for (var i = 0; i < 7; i++) {
       d = await shrink(file, side, q);
-      if (d.length <= 190000) break;
-      side = Math.round(side * .8); q = Math.max(.4, q - .06);
+      if (d.length <= 75000) break;
+      side = Math.round(side * .85); q = Math.max(.42, q - .05);
     }
-    if (d.length > 235000) return null;
-    return { full: d, thumb: await shrink(file, 150, .6) };
+    if (d.length > 120000) return null;
+    return { full: d, thumb: await shrink(file, 120, .55) };
   }
   $('pop-add').addEventListener('click', function () { $('pop-file').click(); });
   $('pop-file').addEventListener('change', async function (e) {
