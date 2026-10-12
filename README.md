@@ -39,4 +39,5 @@ python3 -m http.server 8000   # แล้วเปิด http://localhost:8000
 
 ## Deploy
 
-GitHub Pages: Settings → Pages → Source: GitHub Actions (มี workflow `.github/workflows/pages.yml` ให้แล้ว) หรือ Deploy from branch `main` / root
+GitHub Pages: Settings → Pages → Source: **Deploy from a branch** → Branch `main` / folder `/ (root)` → Save
+เว็บจะอยู่ที่ https://puwadonjkp.github.io/gemba-sharp-eye/
