@@ -41,12 +41,19 @@
     if (p.eventType === 'DELETE') cache[col].delete(id); else cache[col].set(id, row.data);
     emit(col);
   }
+  // one shared client (also used by stats.js)
+  function client() {
+    if (!sb && window.supabase && cfg.supabaseUrl) {
+      try { sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { realtime: { params: { eventsPerSecond: 20 } } }); } catch (e) { sb = null; }
+    }
+    return sb;
+  }
+  window.gembaClient = client;
+
   function start() {
     if (started) return started;
     started = new Promise(function (resolve) {
-      try {
-        sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { realtime: { params: { eventsPerSecond: 20 } } });
-      } catch (e) { resolve(false); return; }
+      if (!client()) { resolve(false); return; }
       var first = true;
       sb.channel('gemba-docs')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, onChange)
