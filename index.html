@@ -522,6 +522,7 @@ h2 { font-size: 14px; }
 .hrow2{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap;justify-content:flex-end}
 .hright .vstat{margin:0;justify-content:flex-end}
 .top{align-items:flex-end}
+.vbtns{display:flex;gap:6px;flex-wrap:wrap}
 </style>
 
 </head>
@@ -566,7 +567,7 @@ h2 { font-size: 14px; }
     </div>
   </div>
   </div>
-  <div class="viewbar" id="viewbar" hidden><span id="view-t"></span><button class="btn sm solid2" id="view-back" type="button">กลับไปบอร์ดวันนี้</button></div>
+  <div class="viewbar" id="viewbar" hidden><span id="view-t"></span><span class="vbtns"><button class="btn sm" id="view-dl" type="button">⬇ ดาวน์โหลดเป็นไฟล์</button><button class="btn sm solid2" id="view-back" type="button">กลับไปบอร์ดวันนี้</button></span></div>
   <p class="note" id="ro-note" hidden></p>
 
   <div class="scroller"><div class="grid" id="grid" role="group" aria-label="บอร์ดตรวจ Gemba"><div class="dc" id="top"></div><div class="dc" id="bot"></div></div></div>
@@ -1222,6 +1223,7 @@ h2 { font-size: 14px; }
     b.innerHTML = SNAPS.map(function (x) {
       return '<div class="hrow"><div class="hm"><b>' + esc(fmtDMY(x.date) || '—') + '</b><small>บันทึกเมื่อ ' + fmtTs(x.ts) + ' · เฉลี่ย ' + (x.avg >= 0 ? x.avg + '%' : '—') + ' · แดง ' + x.red + ' · Perfect ' + x.perfect + '</small></div>'
         + '<button type="button" class="btn sm" data-hv="' + x.id + '">ดู</button>'
+        + '<button type="button" class="btn sm" data-hx="' + x.id + '" title="โหลดเก็บไว้เป็นไฟล์ HTML เปิดดูได้โดยไม่ต้องใช้เน็ต">⬇ โหลด</button>'
         + (RO ? '' : '<button type="button" class="btn sm danger" data-hd="' + x.id + '">ลบ</button>') + '</div>';
     }).join('');
   }
@@ -1232,8 +1234,9 @@ h2 { font-size: 14px; }
   $('hist-close').addEventListener('click', closeHist);
   $('histback').addEventListener('click', function (e) { if (e.target === $('histback')) closeHist(); });
   $('hist-body').addEventListener('click', function (e) {
-    var v = e.target.closest('[data-hv]'), d = e.target.closest('[data-hd]');
+    var v = e.target.closest('[data-hv]'), d = e.target.closest('[data-hd]'), x = e.target.closest('[data-hx]');
     if (v) { openSnap(v.dataset.hv); return; }
+    if (x) { exportSnap(x.dataset.hx, true); return; }
     if (d) {
       if (d.dataset.arm !== '1') { d.dataset.arm = '1'; d.textContent = 'ยืนยันลบ?'; setTimeout(function () { if (d.isConnected) { d.dataset.arm = ''; d.textContent = 'ลบ'; } }, 3000); return; }
       delSnap(d.dataset.hd);
@@ -1287,6 +1290,70 @@ h2 { font-size: 14px; }
     setRO(PREV ? PREV.ro : false, PREV ? PREV.msg : '');
   }
   $('view-back').addEventListener('click', exitView);
+
+  // ---------- download a saved day as a standalone HTML file ----------
+  var exporting = false;
+  async function exportSnap(id, fromHist) {
+    var x = SNAPBY[id]; if (!x || !db || exporting) return;
+    exporting = true;
+    var msgEl = fromHist ? $('hist-msg') : $('view-t'), keep = msgEl.textContent;
+    var wasView = VIEW && VIEW.id === id;
+    try {
+      if (!wasView) { msgEl.textContent = 'กำลังเตรียมไฟล์…'; await openSnap(id); if (!VIEW || VIEW.id !== id) throw new Error('open'); }
+      else msgEl.textContent = 'กำลังเตรียมไฟล์… ';
+      // full-size photos
+      var full = {};
+      var fl = Object.keys(S.findings);
+      for (var a = 0; a < fl.length; a++) {
+        var ph = S.findings[fl[a]].photos || [];
+        for (var b = 0; b < ph.length; b++) {
+          var pid = ph[b].id, data = memPhotos[pid];
+          if (!data) { try { var sn = await db.doc('snapphotos/' + id + '__' + pid).get(); var y = sn.exists && sn.data(); data = y && y.data; } catch (e) { data = null; } }
+          full[pid] = okThumb(data) ? data : ph[b].thumb;
+        }
+      }
+      var root = $('root').cloneNode(true);
+      ['sync', 'cfg', 'resetbox', 'vstat', 'snap-save', 'snap-hist', 'date-pick', 'date-native', 'viewbar', 'ro-note', 'confirm'].forEach(function (i) {
+        var el = root.querySelector('#' + i); if (el) { var t = i === 'sync' ? el.closest('.pill') || el : el; t.remove(); }
+      });
+      var hb = root.querySelector('.hbtns'); if (hb) hb.remove();
+      var de = root.querySelector('#date'); if (de) { var sp = document.createElement('span'); sp.className = 'exp-date'; sp.textContent = fmtDMY(x.date); de.replaceWith(sp); }
+      root.querySelectorAll('textarea').forEach(function (t) {
+        var d = document.createElement('div'); d.className = 'exp-text'; d.textContent = (S.actions[t.id.replace(/^t-/, '')] || '').trim() || '—'; t.replaceWith(d);
+      });
+      root.querySelectorAll('details.fgrp').forEach(function (d) { d.setAttribute('open', ''); });
+      root.querySelectorAll('.th').forEach(function (b) {
+        var f = S.findings[b.dataset.f], p = f && f.photos[+b.dataset.i], img = b.querySelector('img');
+        if (p && img) img.src = full[p.id];
+      });
+      var styles = Array.prototype.map.call(document.querySelectorAll('style'), function (s2) { return s2.textContent; }).join('\n');
+      var fontLink = document.querySelector('link[rel="stylesheet"][href*="fonts.googleapis"]');
+      var title = 'Gemba ' + fmtDMY(x.date);
+      var html = '<!doctype html>\n<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark">'
+        + '<title>' + esc(title) + '</title>' + (fontLink ? '<link rel="stylesheet" href="' + fontLink.href + '">' : '')
+        + '<style>' + styles + '\n.th{width:96px;height:96px;cursor:default}.thumbs{gap:6px}.fgrp>summary{cursor:default}.exp-date{font-family:var(--font-display);font-size:20px;font-weight:700;color:var(--blue)}'
+        + '.exp-text{white-space:pre-wrap;overflow-wrap:anywhere;padding:8px 10px;font-size:13.5px;line-height:1.5}.exp-note{margin:0 0 10px;padding:6px 12px;border-radius:12px;border:1px solid var(--frame);background:var(--board);font-size:13px;color:var(--ink-2)}'
+        + '.cell{pointer-events:none}.acell{overflow:visible}@media print{body{background:#fff}}</style></head><body>'
+        + '<div style="padding:12px clamp(8px,1.2vw,20px) 0"><p class="exp-note">📁 ไฟล์บอร์ดที่บันทึกไว้ · วันที่เดินตรวจ ' + esc(fmtDMY(x.date)) + ' · บันทึกเมื่อ ' + esc(fmtTs(x.ts)) + ' · ดูอย่างเดียว</p></div>'
+        + root.outerHTML + '</body></html>';
+      var d0 = new Date(x.ts);
+      var name = 'gemba-' + d0.getFullYear() + '-' + pad2(d0.getMonth() + 1) + '-' + pad2(d0.getDate()) + '_' + pad2(d0.getHours()) + pad2(d0.getMinutes()) + '.html';
+      var url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+      var a2 = document.createElement('a'); a2.href = url; a2.download = name; document.body.appendChild(a2); a2.click(); a2.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      msgEl = fromHist ? $('hist-msg') : $('view-t');
+      if (!wasView) { exitView(); if (fromHist) { openHist(); } }
+      $('hist-msg').textContent = fromHist ? 'โหลดไฟล์ ' + name + ' แล้ว (' + Math.round(html.length / 1024) + ' KB)' : '';
+      if (!fromHist) $('view-t').textContent = keep;
+    } catch (e) {
+      if (!wasView && VIEW) exitView();
+      if (fromHist) { openHist(); }
+      $('hist-msg').textContent = 'สร้างไฟล์ไม่สำเร็จ ลองอีกครั้ง';
+    }
+    exporting = false;
+  }
+  $('view-dl').addEventListener('click', function () { if (VIEW) exportSnap(VIEW.id, false); });
+
 
   // ---------- table settings ----------
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
