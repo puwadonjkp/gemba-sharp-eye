@@ -523,6 +523,20 @@ h2 { font-size: 14px; }
 .hright .vstat{margin:0;justify-content:flex-end}
 .top{align-items:flex-end}
 .vbtns{display:flex;gap:6px;flex-wrap:wrap}
+.mname[data-m] { cursor: pointer; }
+.mname[data-m]:hover { filter: brightness(.96); text-decoration: underline dotted; text-underline-offset: 3px; }
+.mname[data-m]:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.ro .mname[data-m] { cursor: default; text-decoration: none; filter: none; }
+.lm-opt { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font: inherit; color: var(--ink); background: var(--board-2); border: 1px solid var(--grid); border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; }
+.lm-opt:hover:not(:disabled) { border-color: var(--ink-2); background: color-mix(in srgb, var(--blue) 6%, var(--board-2)); }
+.lm-opt:disabled { opacity: .5; cursor: default; }
+.lm-opt b { display: block; font-size: 14.5px; } .lm-opt small { display: block; color: var(--ink-2); font-size: 12px; margin-top: 1px; }
+.lm-opt .mag { flex: none; width: 28px; height: 28px; }
+.lm-opt.danger { border-color: color-mix(in srgb, var(--stop) 40%, var(--grid)); }
+.lm-sep { margin: 12px 0 8px; border-top: 1px solid var(--grid); }
+.lm-txt { font-size: 14.5px; line-height: 1.6; margin: 0 0 8px; } .lm-txt em { font-style: normal; font-weight: 700; }
+.lm-warn { color: var(--stop); font-size: 13px; margin: 6px 0 0; }
+.btn.stopsolid { background: var(--stop); border-color: var(--stop); color: #fff; }
 </style>
 
 </head>
@@ -598,6 +612,11 @@ h2 { font-size: 14px; }
   <div class="cfg-h"><b id="cfg-title">ตั้งค่าตาราง</b><button type="button" id="cfg-x" class="mini" aria-label="ปิด">×</button></div>
   <div class="cfg-b" id="cfg-body"></div>
   <div class="cfg-f"><span id="cfg-msg" class="cfg-msg"></span><button type="button" class="btn sm" id="cfg-default">คืนค่าเริ่มต้น</button><button type="button" class="btn sm" id="cfg-cancel">ยกเลิก</button><button type="button" class="btn sm solid2" id="cfg-save">บันทึก</button></div>
+</div></div>
+<div class="cfgback" id="lmback" hidden><div class="cfgpanel narrow" role="dialog" aria-modal="true" aria-labelledby="lm-title">
+  <div class="cfg-h"><b id="lm-title"></b><button type="button" id="lm-x" class="mini" aria-label="ปิด">×</button></div>
+  <div class="cfg-b" id="lm-body"></div>
+  <div class="cfg-f" id="lm-foot"></div>
 </div></div>
 <div class="cfgback" id="histback" hidden><div class="cfgpanel narrow" role="dialog" aria-modal="true" aria-labelledby="hist-title">
   <div class="cfg-h"><b id="hist-title">ประวัติบอร์ดที่บันทึกไว้</b><button type="button" id="hist-x" class="mini" aria-label="ปิด">×</button></div>
@@ -760,7 +779,7 @@ h2 { font-size: 14px; }
       col += c.m.length;
     });
     MACH.forEach(function (m, i) {
-      h += '<div class="c mname' + (m.first ? ' cstart' : '') + kc(m) + '" style="grid-column:' + (3 + i) + ';grid-row:2" title="' + esc(m.name) + '">' + esc(m.name) + '</div>';
+      h += '<div class="c mname' + (m.first ? ' cstart' : '') + kc(m) + '" style="grid-column:' + (3 + i) + ';grid-row:2" data-m="' + m.id + '" role="button" tabindex="0" title="' + esc(m.name) + ' · กดเพื่อจัดการทั้งไลน์">' + esc(m.name) + '</div>';
     });
     GROUPS.forEach(function (g, gi) {
       if (GCOUNT[gi] < 2) return;
@@ -1167,6 +1186,95 @@ h2 { font-size: 14px; }
     put('meta/board', { date: S.date });
   });
 
+
+
+  // ---------- whole-line actions (click a machine name) ----------
+  var LM = null;
+  function lmPlan(m) {
+    var empty = 0, filled = 0, reds = 0, photos = 0;
+    ROWS.forEach(function (r) {
+      var v = mark(m, r.k);
+      if (v) { filled++; if (v === 'r') { reds++; var f = S.findings[fid(m, r.k)]; photos += f && f.photos ? f.photos.length : 0; } } else empty++;
+    });
+    return { empty: empty, filled: filled, reds: reds, photos: photos };
+  }
+  var LM_OPTS = [
+    { v: 'g', cls: 'g', name: 'ผ่านทั้งไลน์', icon: '<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>', label: 'ผ่าน' },
+    { v: 'r', cls: 'r', name: 'ไม่ผ่านทั้งไลน์', icon: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>', label: 'ไม่ผ่าน' },
+    { v: 'n', cls: 'n', name: 'ไม่ได้ตรวจทั้งไลน์ (ขีด)', icon: '—', label: 'ขีด (ไม่ได้ตรวจ)' }
+  ];
+  function openLm(m) {
+    if (RO || VIEW || !BYID[m]) return;
+    LM = { m: m, step: 1, v: null };
+    $('lmback').hidden = false; renderLm();
+  }
+  function closeLm() { $('lmback').hidden = true; LM = null; }
+  function renderLm() {
+    if (!LM || !BYID[LM.m]) { closeLm(); return; }
+    var m = LM.m, name = BYID[m].name, p = lmPlan(m), body = $('lm-body'), foot = $('lm-foot');
+    $('lm-title').textContent = 'ไลน์ ' + name;
+    if (LM.step === 1) {
+      var h = '<p class="cfg-hint">เลือกสิ่งที่จะทำกับทุกช่องของไลน์นี้ ระบบจะถามยืนยันอีกครั้งก่อนทำจริง</p>';
+      LM_OPTS.forEach(function (o) {
+        h += '<button type="button" class="lm-opt" data-lv="' + o.v + '"' + (p.empty ? '' : ' disabled') + '><span class="mag ' + o.cls + '">' + o.icon + '</span><span><b>' + o.name + '</b><small>'
+          + (p.empty ? 'ใส่เฉพาะ ' + p.empty + ' ช่องที่ยังว่าง · ข้าม ' + p.filled + ' ช่องที่มีข้อมูลแล้ว' : 'ไม่มีช่องว่างให้ใส่ (ทุกช่องมีข้อมูลแล้ว)') + '</small></span></button>';
+      });
+      h += '<div class="lm-sep"></div><button type="button" class="lm-opt danger" data-lv="clear"' + (p.filled ? '' : ' disabled') + '><span class="mag e"></span><span><b>ล้างทั้งไลน์</b><small>'
+        + (p.filled ? 'ล้าง ' + p.filled + ' ช่องที่มีข้อมูล กลับเป็นสีเทา (เหมือนยังไม่เริ่ม)' : 'ไม่มีข้อมูลให้ล้าง') + '</small></span></button>';
+      body.innerHTML = h;
+      foot.innerHTML = '<button type="button" class="btn sm" id="lm-cancel">ปิด</button>';
+    } else {
+      var t = '', clear = LM.v === 'clear';
+      if (clear) {
+        t = '<p class="lm-txt">ล้างทุกช่องของไลน์ <em>' + esc(name) + '</em> ให้เป็นสีเทา<br>มีข้อมูลอยู่ <em>' + p.filled + ' ช่อง</em> ที่จะถูกล้าง</p>';
+        if (p.reds) t += '<p class="lm-warn">⚠ การ์ดไม่ผ่าน ' + p.reds + ' ใบ' + (p.photos ? ' และรูป ' + p.photos + ' รูป' : '') + ' ของไลน์นี้จะถูกลบด้วย ย้อนกลับไม่ได้</p>';
+        else t += '<p class="cfg-hint">ย้อนกลับไม่ได้ ต้องใส่ข้อมูลใหม่เอง</p>';
+      } else {
+        var o = LM_OPTS.filter(function (x) { return x.v === LM.v; })[0];
+        t = '<p class="lm-txt">ตั้งช่องที่ยังว่างของไลน์ <em>' + esc(name) + '</em> เป็น <em>' + o.label + '</em><br>จะใส่ <em>' + p.empty + ' ช่อง</em> · ข้าม ' + p.filled + ' ช่องที่มีข้อมูลอยู่แล้ว (ไม่ถูกแก้)</p>';
+        if (LM.v === 'r') t += '<p class="cfg-hint">ช่องที่ตั้งเป็นไม่ผ่านจะมีการ์ดขึ้นใน Action ให้ไปใส่สิ่งที่เจอและรูปทีหลังได้</p>';
+      }
+      body.innerHTML = t;
+      foot.innerHTML = '<button type="button" class="btn sm" id="lm-back">ย้อนกลับ</button><button type="button" class="btn sm ' + (clear ? 'stopsolid' : 'solid2') + '" id="lm-ok">ยืนยัน' + (clear ? 'ล้างทั้งไลน์' : '') + '</button>';
+    }
+  }
+  function lmApply(m, v) {
+    var marks = Object.assign({}, S.machines[m]), patch = { marks: {} }, n = 0;
+    ROWS.forEach(function (r) {
+      var cur = mark(m, r.k);
+      if (v === 'clear') {
+        if (!cur) return;
+        if (cur === 'r') removeFinding(m, r.k);
+        delete marks[r.k]; patch.marks[r.k] = ''; n++;
+      } else {
+        if (cur) return;
+        marks[r.k] = v; patch.marks[r.k] = v; n++;
+        if (v === 'r') createFinding(m, r.k);
+      }
+    });
+    if (!n) return;
+    S.machines[m] = marks;
+    renderGrid(); renderFindings();
+    put('machines/' + m, patch);
+  }
+  $('top').addEventListener('click', function (e) { var h = e.target.closest('.mname[data-m]'); if (h) openLm(h.dataset.m); });
+  $('top').addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var h = e.target.closest && e.target.closest('.mname[data-m]'); if (h) { e.preventDefault(); openLm(h.dataset.m); }
+  });
+  $('lm-x').addEventListener('click', closeLm);
+  $('lmback').addEventListener('click', function (e) { if (e.target === $('lmback')) closeLm(); });
+  $('lm-body').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-lv]'); if (!b || b.disabled || !LM) return;
+    LM.v = b.dataset.lv; LM.step = 2; renderLm(); var ok = $('lm-ok'); if (ok) ok.focus();
+  });
+  $('lm-foot').addEventListener('click', function (e) {
+    var id = e.target.id;
+    if (id === 'lm-cancel') closeLm();
+    else if (id === 'lm-back') { LM.step = 1; LM.v = null; renderLm(); }
+    else if (id === 'lm-ok' && LM && LM.v) { var m = LM.m, v = LM.v; closeLm(); if (!RO && !VIEW) lmApply(m, v); }
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('lmback').hidden) closeLm(); });
 
   // ---------- saved days (snapshots) ----------
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
