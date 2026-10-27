@@ -537,6 +537,18 @@ h2 { font-size: 14px; }
 .lm-txt { font-size: 14.5px; line-height: 1.6; margin: 0 0 8px; } .lm-txt em { font-style: normal; font-weight: 700; }
 .lm-warn { color: var(--stop); font-size: 13px; margin: 6px 0 0; }
 .btn.stopsolid { background: var(--stop); border-color: var(--stop); color: #fff; }
+
+/* ---- phone, portrait: one Cell at a time, arrows in the Cell header ---- */
+.off { display: none !important; }
+.grid.focus { --rh: 50px; }
+.grid.focus .kc.ch { justify-content: space-between; gap: 6px; padding: 0 6px; letter-spacing: .1em; font-size: 15px; }
+.chn { display: flex; flex-direction: column; align-items: center; line-height: 1.15; min-width: 0; }
+.chn small { font-size: 11px; letter-spacing: .08em; font-weight: 600; opacity: .75; }
+.navbtn { appearance: none; flex: none; width: 44px; height: 44px; padding: 0; display: grid; place-items: center; cursor: pointer; border-radius: 12px; color: var(--cc);
+  border: 1.5px solid color-mix(in srgb, var(--cc) 55%, var(--board)); background: var(--board); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.navbtn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+.navbtn:active { background: color-mix(in srgb, var(--cc) 18%, var(--board)); }
+.navbtn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 </style>
 
 </head>
@@ -718,12 +730,16 @@ h2 { font-size: 14px; }
   }
 
   function applyLayout(l) {
+    var want = CELLS[CUR] && CELLS[CUR].id;
+    if (!want) { try { want = localStorage.getItem('gemba_cell'); } catch (e) { want = null; } }
     LAYOUT = l;
     CELLS = l.cells.map(function (c) { return { id: c.id, name: c.name, m: c.machines.map(function (m) { return [m.id, m.name]; }) }; });
+    var wi = -1; CELLS.forEach(function (c, ci) { if (c.id === want) wi = ci; });
+    CUR = wi >= 0 ? wi : (CUR < CELLS.length ? CUR : 0);
     MACH = []; BYID = {};
     CELLS.forEach(function (c, ci) {
       c.m.forEach(function (m, i) {
-        var o = { id: m[0], name: m[1], cell: c.id, first: i === 0, last: i === c.m.length - 1, ki: (ci % 5) + 1, n: c.m.length };
+        var o = { id: m[0], name: m[1], cell: c.id, ci: ci, first: i === 0, last: i === c.m.length - 1, ki: (ci % 5) + 1, n: c.m.length };
         MACH.push(o); BYID[o.id] = o;
       });
     });
@@ -746,23 +762,42 @@ h2 { font-size: 14px; }
     renderGrid(); renderFindings(); renderTexts(); syncPop();
   }
 
+  // ---------- phone in portrait: show one Cell at a time ----------
+  var FOCUS_Q = window.matchMedia('(max-width: 700px) and (orientation: portrait)'), CUR = 0, FULL = false;
+  function focusOn() { return !FULL && FOCUS_Q.matches && CELLS.length > 1; }
+  function off(ci) { return focusOn() && ci !== CUR ? ' off' : ''; }
+  var CHEV = { '-1': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>', '1': '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>' };
+  function applyFocus() {
+    var f = focusOn(), g = $('grid'), cols = ['var(--gw)', 'var(--lw)'], n = 0;
+    MACH.forEach(function (m) {
+      var on = !f || m.ci === CUR; if (on) n++;
+      cols.push(f ? (on ? 'minmax(34px, 1fr)' : '0px') : 'minmax(30px, ' + (4 / m.n).toFixed(3) + 'fr)');
+    });
+    g.style.gridTemplateColumns = cols.join(' ');
+    g.style.gridTemplateRows = f ? '56px repeat(' + (ROWS.length + 3) + ', var(--rh)) minmax(160px, 1fr)' : 'repeat(' + (ROWS.length + 4) + ', var(--rh)) minmax(124px, 1fr)';
+    g.style.minWidth = 'calc(var(--gw) + var(--lw) + ' + ((f ? 34 : 30) * n) + 'px)';
+    g.classList.toggle('focus', f);
+    Array.prototype.forEach.call($('bot').querySelectorAll('.acell'), function (el) { el.classList.toggle('off', f && +el.dataset.ci !== CUR); });
+  }
+  function goCell(d) {
+    if (!focusOn()) return;
+    CUR = (CUR + d + CELLS.length) % CELLS.length;
+    try { localStorage.setItem('gemba_cell', CELLS[CUR].id); } catch (e) { /* ignore */ }
+    applyFocus(); renderGrid();
+  }
+
   // ---------- grid ----------
   function setupGrid() {
-    var cols = ['var(--gw)', 'var(--lw)'];
-    MACH.forEach(function (m) { cols.push('minmax(30px, ' + (4 / m.n).toFixed(3) + 'fr)'); });
-    var g = $('grid');
-    g.style.gridTemplateColumns = cols.join(' ');
-    g.style.gridTemplateRows = 'repeat(' + (ROWS.length + 4) + ', var(--rh)) minmax(124px, 1fr)';
-    g.style.minWidth = 'calc(var(--gw) + var(--lw) + ' + (30 * MACH.length) + 'px)';
     var h = '<div class="c wide alabel" style="grid-row:' + ACTROW + '"><b>Action</b></div>';
     var col = 3;
     CELLS.forEach(function (c, ci) {
-      h += '<div class="c acell cstart cend kc k' + ((ci % 5) + 1) + '" style="grid-column:' + col + ' / span ' + c.m.length + ';grid-row:' + ACTROW + '">'
+      h += '<div class="c acell cstart cend kc k' + ((ci % 5) + 1) + '" data-ci="' + ci + '" style="grid-column:' + col + ' / span ' + c.m.length + ';grid-row:' + ACTROW + '">'
         + '<div class="finds" id="f-' + c.id + '"></div>'
         + '<textarea id="t-' + c.id + '" aria-label="Action ' + esc(c.name) + '" placeholder="- เรื่องที่ต้องแก้ – ผู้รับผิดชอบ – วันที่"></textarea></div>';
       col += c.m.length;
     });
     $('bot').innerHTML = h;
+    applyFocus();
     CELLS.forEach(function (c) {
       var el = $('t-' + c.id);
       el.readOnly = RO;
@@ -775,11 +810,14 @@ h2 { font-size: 14px; }
     var h = '<div class="corner">เครื่อง / หัวข้อที่ตรวจ</div>';
     var col = 3;
     CELLS.forEach(function (c, ci) {
-      h += '<div class="c ch cstart cend kc k' + ((ci % 5) + 1) + '" style="grid-column:' + col + ' / span ' + c.m.length + ';grid-row:1">' + esc(c.name) + '</div>';
+      var chIn = focusOn()
+        ? '<button type="button" class="navbtn" data-nav="-1" aria-label="Cell ก่อนหน้า">' + CHEV['-1'] + '</button><span class="chn">' + esc(c.name) + '<small>' + (ci + 1) + ' / ' + CELLS.length + '</small></span><button type="button" class="navbtn" data-nav="1" aria-label="Cell ถัดไป">' + CHEV['1'] + '</button>'
+        : esc(c.name);
+      h += '<div class="c ch cstart cend kc k' + ((ci % 5) + 1) + off(ci) + '" style="grid-column:' + col + ' / span ' + c.m.length + ';grid-row:1">' + chIn + '</div>';
       col += c.m.length;
     });
     MACH.forEach(function (m, i) {
-      h += '<div class="c mname' + (m.first ? ' cstart' : '') + kc(m) + '" style="grid-column:' + (3 + i) + ';grid-row:2" data-m="' + m.id + '" role="button" tabindex="0" title="' + esc(m.name) + ' · กดเพื่อจัดการทั้งไลน์">' + esc(m.name) + '</div>';
+      h += '<div class="c mname' + (m.first ? ' cstart' : '') + kc(m) + off(m.ci) + '" style="grid-column:' + (3 + i) + ';grid-row:2" data-m="' + m.id + '" role="button" tabindex="0" title="' + esc(m.name) + ' · กดเพื่อจัดการทั้งไลน์">' + esc(m.name) + '</div>';
     });
     GROUPS.forEach(function (g, gi) {
       if (GCOUNT[gi] < 2) return;
@@ -800,7 +838,7 @@ h2 { font-size: 14px; }
         var sel = POP && POP.m === m.id && POP.k === r.k && !pop.hidden;
         var inner = v === 'g' || v === 'r' ? '<span class="mag ' + v + '">' + ICON[v] + '</span>'
           : v === 'n' ? '<span class="mag n">—</span>' : '<span class="mag e"></span>';
-        h += '<button type="button" class="c cell' + (m.first ? ' cstart' : '') + kc(m) + (r.glast ? ' rowend' : '') + (has ? ' hasnote' : '') + (sel ? ' sel' : '') + '"'
+        h += '<button type="button" class="c cell' + (m.first ? ' cstart' : '') + kc(m) + (r.glast ? ' rowend' : '') + (has ? ' hasnote' : '') + (sel ? ' sel' : '') + off(m.ci) + '"'
           + ' style="grid-column:' + (3 + i) + ';grid-row:' + r.line + '" data-m="' + m.id + '" data-k="' + r.k + '"'
           + ' aria-label="' + esc(m.name) + ' ' + esc(r.t) + ': ' + LABEL[v] + '">' + inner + '</button>';
       });
@@ -809,9 +847,9 @@ h2 { font-size: 14px; }
     h += '<div class="c wide" style="grid-row:' + PERFROW + '"><b>Perfect Day</b></div>';
     MACH.forEach(function (m, i) {
       var p = calc(S.machines[m.id]);
-      h += '<div class="c pct ' + band(p) + (m.first ? ' cstart' : '') + kc(m) + '" style="grid-column:' + (3 + i) + ';grid-row:' + PCTROW + '">'
+      h += '<div class="c pct ' + band(p) + (m.first ? ' cstart' : '') + kc(m) + off(m.ci) + '" style="grid-column:' + (3 + i) + ';grid-row:' + PCTROW + '">'
         + (p === null ? '<em>—</em>' : '<em>' + p + '%</em><span class="fill" style="width:' + p + '%"></span>') + '</div>';
-      h += '<div class="c star' + (m.first ? ' cstart' : '') + kc(m) + '" style="grid-column:' + (3 + i) + ';grid-row:' + PERFROW + '">' + (p === 100 ? STAR : '') + '</div>';
+      h += '<div class="c star' + (m.first ? ' cstart' : '') + kc(m) + off(m.ci) + '" style="grid-column:' + (3 + i) + ';grid-row:' + PERFROW + '">' + (p === 100 ? STAR : '') + '</div>';
     });
     $('top').innerHTML = h;
     if (keep) {
@@ -1104,6 +1142,8 @@ h2 { font-size: 14px; }
 
   // ---------- events ----------
   $('top').addEventListener('click', function (e) {
+    var nv = e.target.closest('[data-nav]');
+    if (nv) { goCell(+nv.dataset.nav); return; }
     var b = e.target.closest('button.cell');
     if (!b) return;
     openPop(b.dataset.m, b.dataset.k, b);
@@ -1114,6 +1154,22 @@ h2 { font-size: 14px; }
     var h = e.target.closest('.fnd-h');
     if (h) openPop(h.dataset.m, h.dataset.k, h);
   });
+
+  // phone: swipe left/right on the board (not in text boxes) also changes Cell
+  (function () {
+    var sc = document.querySelector('.scroller'), t0 = null;
+    sc.addEventListener('touchstart', function (e) {
+      t0 = e.touches.length === 1 && !e.target.closest('textarea, input') ? { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() } : null;
+    }, { passive: true });
+    sc.addEventListener('touchend', function (e) {
+      if (!t0 || !focusOn() || sc.scrollWidth > sc.clientWidth + 1) { t0 = null; return; }
+      var t = e.changedTouches[0], dx = t.clientX - t0.x, dy = t.clientY - t0.y, ok = Math.abs(dx) > 70 && Math.abs(dy) < 45 && Date.now() - t0.t < 700;
+      t0 = null;
+      if (ok) goCell(dx < 0 ? 1 : -1);
+    }, { passive: true });
+    function modeChanged() { if (CELLS.length) { applyFocus(); renderGrid(); } }
+    if (FOCUS_Q.addEventListener) FOCUS_Q.addEventListener('change', modeChanged); else if (FOCUS_Q.addListener) FOCUS_Q.addListener(modeChanged);
+  })();
 
   function bindText(el, key, path, getter) {
     function flush() {
@@ -1420,7 +1476,9 @@ h2 { font-size: 14px; }
           full[pid] = okThumb(data) ? data : ph[b].thumb;
         }
       }
+      FULL = true; applyFocus(); renderGrid();
       var root = $('root').cloneNode(true);
+      FULL = false; applyFocus(); renderGrid();
       ['sync', 'cfg', 'resetbox', 'vstat', 'snap-save', 'snap-hist', 'date-pick', 'date-native', 'viewbar', 'ro-note', 'confirm'].forEach(function (i) {
         var el = root.querySelector('#' + i); if (el) { var t = i === 'sync' ? el.closest('.pill') || el : el; t.remove(); }
       });
