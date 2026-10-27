@@ -549,6 +549,30 @@ h2 { font-size: 14px; }
 .navbtn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
 .navbtn:active { background: color-mix(in srgb, var(--cc) 18%, var(--board)); }
 .navbtn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* ---- Perfect Day: the whole line (column) glows gold, big shining star ---- */
+.cell.perf { background: color-mix(in srgb, #fbbf24 10%, var(--board)); }
+.mname.perf { color: #92400e; background: linear-gradient(180deg, color-mix(in srgb, #fbbf24 26%, var(--board-2)), color-mix(in srgb, #fbbf24 10%, var(--board-2))); box-shadow: inset 0 -3px 0 #f59e0b; }
+.pct.perf { color: #92400e; font-weight: 800; background: linear-gradient(180deg, color-mix(in srgb, #fbbf24 34%, var(--board)), color-mix(in srgb, #fbbf24 12%, var(--board))); }
+.pct.perf .fill { background: #f59e0b; opacity: 1; }
+.star.perf { z-index: 2; overflow: visible; background: radial-gradient(ellipse 90% 140% at 50% 50%, rgba(253,224,71,.8), rgba(251,191,36,.3) 50%, transparent 82%), color-mix(in srgb, #fbbf24 18%, var(--board)); box-shadow: 0 -10px 18px -6px rgba(251,191,36,.55), 0 10px 18px -6px rgba(251,191,36,.45); }
+.star.perf svg { width: calc(var(--rh) * 1.4); height: calc(var(--rh) * 1.4); flex: none; fill: #fbbf24; stroke: #b45309; stroke-width: 1.1;
+  filter: drop-shadow(0 0 3px #fde047) drop-shadow(0 0 9px rgba(245,158,11,.95)) drop-shadow(0 0 18px rgba(251,191,36,.7)); }
+.star.perf::before, .star.perf::after { content: ""; position: absolute; width: 9px; height: 9px; background: #fef08a; pointer-events: none; filter: drop-shadow(0 0 3px #f59e0b);
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+.star.perf::before { top: 3px; left: 12%; width: 11px; height: 11px; }
+.star.perf::after { bottom: 3px; right: 10%; width: 9px; height: 9px; }
+.grid.focus .star.perf svg { width: 58px; height: 58px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .mname.perf, :root:not([data-theme="light"]) .pct.perf { color: #fde68a; } }
+:root[data-theme="dark"] .mname.perf, :root[data-theme="dark"] .pct.perf { color: #fde68a; }
+@media (prefers-reduced-motion: no-preference) {
+  .star.perf svg { animation: pfglow 2.4s ease-in-out infinite; }
+  .star.perf::before { animation: pftwinkle 2.4s ease-in-out infinite; }
+  .star.perf::after { animation: pftwinkle 2.4s ease-in-out .9s infinite; }
+  @keyframes pfglow { 0%, 100% { transform: scale(1) rotate(0deg); filter: drop-shadow(0 0 3px #fde047) drop-shadow(0 0 8px rgba(245,158,11,.9)) drop-shadow(0 0 14px rgba(251,191,36,.55)); }
+                      50% { transform: scale(1.1) rotate(-4deg); filter: drop-shadow(0 0 5px #fef08a) drop-shadow(0 0 13px rgba(245,158,11,1)) drop-shadow(0 0 26px rgba(251,191,36,.9)); } }
+  @keyframes pftwinkle { 0%, 100% { opacity: .15; transform: scale(.5); } 50% { opacity: 1; transform: scale(1.15); } }
+}
 </style>
 
 </head>
@@ -807,6 +831,7 @@ h2 { font-size: 14px; }
 
   function renderGrid() {
     var act = document.activeElement, keep = act && act.dataset && act.dataset.m && act.classList.contains('cell') ? act.dataset.m + '|' + act.dataset.k : null;
+    var PF = {}; MACH.forEach(function (m) { PF[m.id] = calc(S.machines[m.id]) === 100 ? ' perf' : ''; });
     var h = '<div class="corner">เครื่อง / หัวข้อที่ตรวจ</div>';
     var col = 3;
     CELLS.forEach(function (c, ci) {
@@ -817,7 +842,7 @@ h2 { font-size: 14px; }
       col += c.m.length;
     });
     MACH.forEach(function (m, i) {
-      h += '<div class="c mname' + (m.first ? ' cstart' : '') + kc(m) + off(m.ci) + '" style="grid-column:' + (3 + i) + ';grid-row:2" data-m="' + m.id + '" role="button" tabindex="0" title="' + esc(m.name) + ' · กดเพื่อจัดการทั้งไลน์">' + esc(m.name) + '</div>';
+      h += '<div class="c mname' + (m.first ? ' cstart' : '') + kc(m) + off(m.ci) + PF[m.id] + '" style="grid-column:' + (3 + i) + ';grid-row:2" data-m="' + m.id + '" role="button" tabindex="0" title="' + esc(m.name) + ' · กดเพื่อจัดการทั้งไลน์">' + esc(m.name) + '</div>';
     });
     GROUPS.forEach(function (g, gi) {
       if (GCOUNT[gi] < 2) return;
@@ -838,7 +863,7 @@ h2 { font-size: 14px; }
         var sel = POP && POP.m === m.id && POP.k === r.k && !pop.hidden;
         var inner = v === 'g' || v === 'r' ? '<span class="mag ' + v + '">' + ICON[v] + '</span>'
           : v === 'n' ? '<span class="mag n">—</span>' : '<span class="mag e"></span>';
-        h += '<button type="button" class="c cell' + (m.first ? ' cstart' : '') + kc(m) + (r.glast ? ' rowend' : '') + (has ? ' hasnote' : '') + (sel ? ' sel' : '') + off(m.ci) + '"'
+        h += '<button type="button" class="c cell' + (m.first ? ' cstart' : '') + kc(m) + (r.glast ? ' rowend' : '') + (has ? ' hasnote' : '') + (sel ? ' sel' : '') + off(m.ci) + PF[m.id] + '"'
           + ' style="grid-column:' + (3 + i) + ';grid-row:' + r.line + '" data-m="' + m.id + '" data-k="' + r.k + '"'
           + ' aria-label="' + esc(m.name) + ' ' + esc(r.t) + ': ' + LABEL[v] + '">' + inner + '</button>';
       });
@@ -847,9 +872,9 @@ h2 { font-size: 14px; }
     h += '<div class="c wide" style="grid-row:' + PERFROW + '"><b>Perfect Day</b></div>';
     MACH.forEach(function (m, i) {
       var p = calc(S.machines[m.id]);
-      h += '<div class="c pct ' + band(p) + (m.first ? ' cstart' : '') + kc(m) + off(m.ci) + '" style="grid-column:' + (3 + i) + ';grid-row:' + PCTROW + '">'
+      h += '<div class="c pct ' + band(p) + (m.first ? ' cstart' : '') + kc(m) + off(m.ci) + PF[m.id] + '" style="grid-column:' + (3 + i) + ';grid-row:' + PCTROW + '">'
         + (p === null ? '<em>—</em>' : '<em>' + p + '%</em><span class="fill" style="width:' + p + '%"></span>') + '</div>';
-      h += '<div class="c star' + (m.first ? ' cstart' : '') + kc(m) + off(m.ci) + '" style="grid-column:' + (3 + i) + ';grid-row:' + PERFROW + '">' + (p === 100 ? STAR : '') + '</div>';
+      h += '<div class="c star' + (m.first ? ' cstart' : '') + kc(m) + off(m.ci) + PF[m.id] + '" style="grid-column:' + (3 + i) + ';grid-row:' + PERFROW + '">' + (p === 100 ? STAR : '') + '</div>';
     });
     $('top').innerHTML = h;
     if (keep) {
