@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
+<script>try{var _t=localStorage.getItem("gemba_theme");if(_t==="light"||_t==="dark")document.documentElement.setAttribute("data-theme",_t)}catch(e){}</script>
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
@@ -53,6 +54,7 @@
   color-scheme: dark;
 }
 @media (max-width: 700px) { :root { --gw: 30px; --lw: 100px; } }
+:root[data-theme="light"] { color-scheme: light; }
 
 * { box-sizing: border-box; }
 body {
@@ -618,7 +620,7 @@ h2 { font-size: 14px; }
       <p class="eyebrow">Gemba walk board</p>
       <h1>Operation Sharp-Eye Gemba</h1>
     </div>
-    <div class="hright"><p class="vstat" id="vstat" hidden aria-label="สถิติผู้เข้าชม"><span title="กำลังเปิดบอร์ดอยู่ตอนนี้"><i class="vdot"></i><b id="v-on">1</b> ออนไลน์</span><span title="จำนวนครั้งที่เปิดบอร์ดวันนี้ / จำนวนคนไม่ซ้ำ (นับตามเบราว์เซอร์)">วันนี้ <b id="v-today">–</b> ครั้ง · <b id="v-uni">–</b> คน</span><span title="จำนวนครั้งที่เปิดบอร์ดทั้งหมด">รวม <b id="v-total">–</b></span></p><div class="hrow2"><div class="hbtns"><button class="btn" id="snap-save" type="button" disabled title="บันทึกบอร์ดตอนนี้เก็บไว้ดูย้อนหลัง">💾 บันทึกวันนี้</button><button class="btn" id="snap-hist" type="button" disabled title="ดูวันที่บันทึกไว้">🕘 ประวัติ</button><button class="btn" id="lock" type="button" aria-pressed="false" title="เปิด/ปิดการแก้ไขบอร์ด (ต้องใส่รหัส)">🔓 แก้ไขได้</button></div><div class="datebox">
+    <div class="hright"><p class="vstat" id="vstat" hidden aria-label="สถิติผู้เข้าชม"><span title="กำลังเปิดบอร์ดอยู่ตอนนี้"><i class="vdot"></i><b id="v-on">1</b> ออนไลน์</span><span title="จำนวนครั้งที่เปิดบอร์ดวันนี้ / จำนวนคนไม่ซ้ำ (นับตามเบราว์เซอร์)">วันนี้ <b id="v-today">–</b> ครั้ง · <b id="v-uni">–</b> คน</span><span title="จำนวนครั้งที่เปิดบอร์ดทั้งหมด">รวม <b id="v-total">–</b></span></p><div class="hrow2"><div class="hbtns"><button class="btn" id="snap-save" type="button" disabled title="บันทึกบอร์ดตอนนี้เก็บไว้ดูย้อนหลัง">💾 บันทึกวันนี้</button><button class="btn" id="theme-btn" type="button" title="สลับโหมดมืด / สว่าง" aria-label="สลับโหมดมืด / สว่าง"></button><button class="btn" id="snap-hist" type="button" disabled title="ดูวันที่บันทึกไว้">🕘 ประวัติ</button><button class="btn" id="lock" type="button" aria-pressed="false" title="เปิด/ปิดการแก้ไขบอร์ด (ต้องใส่รหัส)">🔓 แก้ไขได้</button></div><div class="datebox">
       <label for="date">วันที่เดินตรวจ</label>
       <span class="datefield"><input id="date" type="text" inputmode="numeric" autocomplete="off" maxlength="10" placeholder="DD/MM/YYYY" aria-label="วันที่เดินตรวจ รูปแบบ DD/MM/YYYY"><button type="button" class="calbtn" id="date-pick" aria-label="เลือกวันที่จากปฏิทิน"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg></button><input id="date-native" type="date" tabindex="-1" aria-hidden="true"></span>
     </div></div></div>
@@ -855,6 +857,20 @@ h2 { font-size: 14px; }
 
   // ---------- Action area font size (per device) ----------
   var AF = 1;
+  // light / dark toggle: remembers the choice in this browser; without a choice it follows the device setting
+  (function () {
+    var btn = $('theme-btn'), mq = window.matchMedia('(prefers-color-scheme: dark)');
+    function isDark() { var a = document.documentElement.getAttribute('data-theme'); return a ? a === 'dark' : mq.matches; }
+    function paint() { var d = isDark(); btn.textContent = d ? '☀️ สว่าง' : '🌙 มืด'; btn.setAttribute('aria-pressed', d ? 'true' : 'false'); btn.title = d ? 'สลับเป็นโหมดสว่าง' : 'สลับเป็นโหมดมืด'; }
+    btn.addEventListener('click', function () {
+      var next = isDark() ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('gemba_theme', next); } catch (e) { /* ignore */ }
+      paint();
+    });
+    if (mq.addEventListener) mq.addEventListener('change', paint);
+    paint();
+  })();
   try { var sv = parseFloat(localStorage.getItem('gemba_af')); if (sv >= 0.3 && sv <= 1.8) AF = sv; } catch (e) { /* ignore */ }
   function setAF(v, save) {
     AF = Math.min(1.8, Math.max(0.3, Math.round(v * 10) / 10));
