@@ -606,6 +606,8 @@ h2 { font-size: 14px; }
 .lb #lb-prev { left: 4px; right: auto; }
 .lb #lb-next { right: 4px; }
 @media (max-width: 700px) { .lb .lb-nav { width: 42px; height: 60px; font-size: 34px; background: rgba(255,255,255,.75); } .lb-cap { margin-right: 54px; width: calc(100% - 54px); } }
+.lb-cap .lb-note { margin: 8px 0 0; font-size: 13px; color: #fde68a; }
+.lb-cap .lb-note[hidden] { display: none; }
 </style>
 
 </head>
@@ -698,7 +700,7 @@ h2 { font-size: 14px; }
   <div class="cfg-f"><span id="pw-msg" class="cfg-msg" role="alert"></span><button type="button" class="btn sm" id="pw-no">ยกเลิก</button><button type="submit" class="btn sm solid2" id="pw-ok">ยืนยัน</button></div>
 </form></div>
 <div class="lb" id="lb" hidden><button type="button" id="lb-x" aria-label="ปิดรูป">×</button>
-  <div class="lb-cap" id="lb-cap"><b id="lb-t"></b><span id="lb-n"></span><p id="lb-c"></p></div>
+  <div class="lb-cap" id="lb-cap"><b id="lb-t"></b><span id="lb-n"></span><p id="lb-c"></p><p id="lb-note" class="lb-note" hidden></p></div>
   <div class="lb-stage" id="lb-stage"><button type="button" class="lb-nav" id="lb-prev" aria-label="รูปก่อนหน้า">‹</button><img id="lb-img" alt="รูปที่แนบ"><button type="button" class="lb-nav" id="lb-next" aria-label="รูปถัดไป">›</button></div>
 </div>
 
@@ -1297,14 +1299,17 @@ function sha256(str) {
     var n = f.photos.length, img = $('lb-img');
     $('lb-n').textContent = n > 1 ? 'รูปที่ ' + (LB.i + 1) + ' / ' + n : '';
     $('lb-prev').hidden = $('lb-next').hidden = n < 2;
+    $('lb-note').hidden = true;
     img.src = p.thumb;
     var token = p.id; img.dataset.t = token;
     (async function () {
-      var data = memPhotos[p.id];
+      var data = memPhotos[p.id], gone = false;
       if (!data && db) {
-        try { var snap = await db.doc((VIEW ? 'snapphotos/' + VIEW.id + '__' : 'photos/') + p.id).get(); var x = snap.exists && snap.data(); data = x && x.data; } catch (e) { data = null; }
+        try { var snap = await db.doc((VIEW ? 'snapphotos/' + VIEW.id + '__' : 'photos/') + p.id).get(); var x = snap.exists && snap.data(); data = x && x.data; gone = !snap.exists; } catch (e) { data = null; }
       }
-      if (okThumb(data) && img.dataset.t === token && !$('lb').hidden) img.src = data;
+      if (img.dataset.t !== token || $('lb').hidden) return;
+      if (okThumb(data)) img.src = data;
+      else if (gone && VIEW) { $('lb-note').textContent = 'รูปเต็มของวันที่บันทึกนี้ถูกลบตามอายุข้อมูลแล้ว (แสดงเป็นภาพย่อ)'; $('lb-note').hidden = false; }
     })();
   }
   function lbGo(d) {
