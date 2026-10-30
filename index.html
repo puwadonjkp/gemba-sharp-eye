@@ -853,13 +853,13 @@ h2 { font-size: 14px; }
 
   // ---------- Action area font size (per device) ----------
   var AF = 1;
-  try { var sv = parseFloat(localStorage.getItem('gemba_af')); if (sv >= 0.6 && sv <= 1.8) AF = sv; } catch (e) { /* ignore */ }
+  try { var sv = parseFloat(localStorage.getItem('gemba_af')); if (sv >= 0.3 && sv <= 1.8) AF = sv; } catch (e) { /* ignore */ }
   function setAF(v, save) {
-    AF = Math.min(1.8, Math.max(0.6, Math.round(v * 10) / 10));
+    AF = Math.min(1.8, Math.max(0.3, Math.round(v * 10) / 10));
     $('root').style.setProperty('--af', AF);
     if (save) { try { localStorage.setItem('gemba_af', String(AF)); } catch (e) { /* ignore */ } }
     Array.prototype.forEach.call(document.querySelectorAll('[data-fs]'), function (b) {
-      b.disabled = (+b.dataset.fs < 0 && AF <= 0.6) || (+b.dataset.fs > 0 && AF >= 1.8);
+      b.disabled = (+b.dataset.fs < 0 && AF <= 0.3) || (+b.dataset.fs > 0 && AF >= 1.8);
       b.title = (+b.dataset.fs < 0 ? 'ลดขนาดตัวอักษร' : 'เพิ่มขนาดตัวอักษร') + ' (ตอนนี้ ' + Math.round(AF * 100) + '%)';
     });
   }
